@@ -32,15 +32,15 @@ func (k *KubectlCLI) Exec(ctx context.Context, cmd []string) (string, error) {
 	return k.Container.WithExec(cmd).Stdout(ctx)
 }
 
-// Kube returns a KubectlCLI
-func (m *Kubectl) Kube(ctx context.Context, version string) *KubectlCLI {
+// Kubectl returns a KubectlCLI
+func (k *Kubectl) Kubectl(ctx context.Context, version string) *KubectlCLI {
 	if version == "" {
 		version = "1.33.0"
 	}
 
 	c := dag.Container().
 		From(fmt.Sprintf("bitnami/kubectl:%s", version)).
-		WithMountedSecret("/root/.kube/config", m.Kubeconfig)
+		WithMountedSecret("/root/.kube/config", k.Kubeconfig)
 
 	return &KubectlCLI{
 		Container: c.
