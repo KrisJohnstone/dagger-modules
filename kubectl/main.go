@@ -6,44 +6,40 @@ import (
 	"fmt"
 )
 
-type Kubectl struct {
-	Kubeconfig *dagger.Secret
+type Kubectl struct{}
+
+func (m *Kubectl) Cli(config *dagger.Secret) *Cli {
+	return &Cli{Config: config}
 }
 
-// New creates a new instance of the Kubectl module with an already configured
-// kubeconfig file. Kubectl is the top level module that provides functions setting
-// up the authentication for a specific k8s setup.
-func New(kubeconfig *dagger.Secret) *Kubectl {
-	return &Kubectl{
-		Kubeconfig: kubeconfig,
-	}
-}
-
-// KubectlCLI is a child module that holds a Container that should already
-// be configured to talk to a k8s cluster.
-type KubectlCLI struct {
-	Container *dagger.Container
+type Cli struct {
+	Config *dagger.Secret
 }
 
 // Exec runs the specified kubectl command.
 // NOTE: `kubectl` should be specified as part of the cmd variable.
 // For example, to list pods: ["get", "pods", "-n", "namespace"]
-func (k *KubectlCLI) Exec(ctx context.Context, cmd []string) (string, error) {
-	return k.Container.WithExec(cmd).Stdout(ctx)
+func (m *Cli) Exec(ctx context.Context, args []string) (string, error) {
+	if k.Config == nil {
+		return "", fmt.Errorf("please provide a kubectl config")
+	}
+
+	return m.container().WithExec(args).Stdout(ctx)
+}
+
+// Container returns a container with the kubectl image and given config. The entrypoint is set to kubectl.
+func (m *Cli) Container(_ context.Context) (*dagger.Container, error) {
+	if m.Config == nil {
+		return nil, fmt.Errorf("please provide a kubectl config")
+	}
+
+	return m.container(), nil
 }
 
 // Kubectl returns a KubectlCLI
-func (k *Kubectl) Kubectl(ctx context.Context, version string) *KubectlCLI {
-	if version == "" {
-		version = "1.33.0"
-	}
-
-	c := dag.Container().
-		From(fmt.Sprintf("bitnami/kubectl:%s", version)).
-		WithMountedSecret("/root/.kube/config", k.Kubeconfig)
-
-	return &KubectlCLI{
-		Container: c.
-			WithEntrypoint([]string{"/bin/kubectl"}),
-	}
+func (m *Cli) container() *dagger.Container {
+	return dag.Container().
+		From(fmt.Sprintf("bitnami/kubectl:%s", "1.33.0")).
+		WithUser("root").
+		WithMountedSecret("/root/.kube/config", m.Config)
 }
