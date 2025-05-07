@@ -1,9 +1,16 @@
+// Based on the work done here:
+// https://github.com/matipan/daggerverse/blob/84cbdbe89185ad94690a9ada1cdfb79f1878ecd7/kubectl/main.go
+// `kubectl` that provides the kubectl through many authentication methods.
 package main
 
 import (
 	"context"
 	"dagger/kubectl/internal/dagger"
 	"fmt"
+)
+
+const (
+	Version = "1.33.0"
 )
 
 type Kubectl struct {
@@ -32,15 +39,12 @@ func (k *KubectlCLI) Exec(ctx context.Context, cmd []string) (string, error) {
 	return k.Container.WithExec(cmd).Stdout(ctx)
 }
 
-// Kubectl returns a KubectlCLI
-func (k *Kubectl) Kubectl(ctx context.Context, version string) *KubectlCLI {
-	if version == "" {
-		version = "1.33.0"
-	}
-
+// KubectlEks returns a KubectlCLI with aws-iam-authenticator and AWS credentials
+// configured to communicate with an EKS cluster.
+func (m *Kubectl) KubectlContainer(_ context.Context) *KubectlCLI {
 	c := dag.Container().
-		From(fmt.Sprintf("bitnami/kubectl:%s", version)).
-		WithMountedSecret("/root/.kube/config", k.Kubeconfig)
+		From(fmt.Sprintf("bitnami/kubectl:%s", Version)).
+		WithMountedSecret("/root/.kube/config", m.Kubeconfig)
 
 	return &KubectlCLI{
 		Container: c.
